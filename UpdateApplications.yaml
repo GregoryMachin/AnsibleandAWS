@@ -1,0 +1,278 @@
+---
+- name: Update Microsoft Edge, Mozilla Firefox, and Google Chrome based on PowerShell check
+  hosts: all
+  vars:
+    installer_source: "installers"  # Local directory containing installer files
+    installer_dest: "C:\\temp\\installers"
+    target_versions:
+      edge: "137.0.3296.68"       # Desired version of Microsoft Edge
+      firefox: "139.0.1"          # Desired version of Mozilla Firefox
+      chrome: "137.0.7151.69"    # Desired version of Google Chrome
+      RemoteDesktopManager: "2025.2.13.1"
+    edge_installer_path: "{{ installer_dest }}\\MicrosoftEdgeEnterpriseX64.msi"
+    firefox_installer_path: "{{ installer_dest }}\\FirefoxSetup.msi"
+    chrome_installer_path: "{{ installer_dest }}\\googlechromestandaloneenterprise64.msi"
+    RemoteDesktopManager_installer_path: "{{ installer_dest }}\\RemoteDesktopManager.msi"
+  tasks:
+    - name: Create C:\temp directory if it doesn't exist
+      win_file:
+        path: "C:\\temp"
+        state: directory
+
+    - name: Copy all installers to C:\temp\installers
+      ansible.windows.win_copy:
+        src: "{{ installer_source }}"
+        dest: "C:\\temp"
+
+    - name: Check if Edge needs an update using PowerShell
+      win_shell: |
+        $registryPaths = @(
+            "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+            "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+        )
+        $programName = "Microsoft Edge"
+        $targetVersion = "{{ target_versions.edge }}"
+        $programFound = $false
+        $installedVersion = $null
+
+        foreach ($path in $registryPaths) {
+            $subkeys = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+            foreach ($subkey in $subkeys) {
+                $properties = Get-ItemProperty -Path $subkey.PSPath -ErrorAction SilentlyContinue
+                if ($properties.DisplayName -like "*$programName*") {
+                    $programFound = $true
+                    $installedVersion = $properties.DisplayVersion
+                    break
+                }
+            }
+            if ($programFound) { break }
+        }
+
+        if ($programFound -and $installedVersion) {
+            if ([version]$installedVersion -lt [version]$targetVersion) {
+                Write-Output "true"
+            } else {
+                Write-Output "false"
+            }
+        } else {
+            Write-Output "false"
+        }
+      register: edge_update_check
+      changed_when: false
+
+    - name: Check if Firefox needs an update using PowerShell
+      win_shell: |
+        $registryPaths = @(
+            "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+            "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+        )
+        $programName = "Mozilla Firefox"
+        $targetVersion = "{{ target_versions.firefox }}"
+        $programFound = $false
+        $installedVersion = $null
+
+        foreach ($path in $registryPaths) {
+            $subkeys = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+            foreach ($subkey in $subkeys) {
+                $properties = Get-ItemProperty -Path $subkey.PSPath -ErrorAction SilentlyContinue
+                if ($properties.DisplayName -like "*$programName*") {
+                    $programFound = $true
+                    $installedVersion = $properties.DisplayVersion
+                    break
+                }
+            }
+            if ($programFound) { break }
+        }
+
+        if ($programFound -and $installedVersion) {
+            if ([version]$installedVersion -lt [version]$targetVersion) {
+                Write-Output "true"
+            } else {
+                Write-Output "false"
+            }
+        } else {
+            Write-Output "false"
+        }
+      register: firefox_update_check
+      changed_when: false
+
+    - name: Check if Chrome needs an update using PowerShell
+      win_shell: |
+        $registryPaths = @(
+            "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+            "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+        )
+        $programName = "Google Chrome"
+        $targetVersion = "{{ target_versions.chrome }}"
+        $programFound = $false
+        $installedVersion = $null
+
+        foreach ($path in $registryPaths) {
+            $subkeys = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+            foreach ($subkey in $subkeys) {
+                $properties = Get-ItemProperty -Path $subkey.PSPath -ErrorAction SilentlyContinue
+                if ($properties.DisplayName -like "*$programName*") {
+                    $programFound = $true
+                    $installedVersion = $properties.DisplayVersion
+                    break
+                }
+            }
+            if ($programFound) { break }
+        }
+
+        if ($programFound -and $installedVersion) {
+            if ([version]$installedVersion -lt [version]$targetVersion) {
+                Write-Output "true"
+            } else {
+                Write-Output "false"
+            }
+        } else {
+            Write-Output "false"
+        }
+      register: chrome_update_check
+      changed_when: false
+
+    - name: Check if RemoteDesktopManager needs an update using PowerShell
+      win_shell: |
+        $registryPaths = @(
+            "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+            "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+        )
+        $programName = "Remote Desktop Manager"
+        $targetVersion = "{{ target_versions.RemoteDesktopManager }}"
+        $programFound = $false
+        $installedVersion = $null
+
+        foreach ($path in $registryPaths) {
+            $subkeys = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+            foreach ($subkey in $subkeys) {
+                $properties = Get-ItemProperty -Path $subkey.PSPath -ErrorAction SilentlyContinue
+                if ($properties.DisplayName -like "*$programName*") {
+                    $programFound = $true
+                    $installedVersion = $properties.DisplayVersion
+                    break
+                }
+            }
+            if ($programFound) { break }
+        }
+
+        if ($programFound -and $installedVersion) {
+            if ([version]$installedVersion -lt [version]$targetVersion) {
+                Write-Output "true"
+            } else {
+                Write-Output "false"
+            }
+        } else {
+            Write-Output "false"
+        }
+      register: RemoteDesktopManager_update_check
+      changed_when: false
+
+    - name: Debug PowerShell output for Edge
+      debug:
+        msg: "Edge update required: {{ edge_update_check.stdout.strip() }}"
+
+    - name: Debug PowerShell output for Firefox
+      debug:
+        msg: "Firefox update required: {{ firefox_update_check.stdout.strip() }}"
+
+    - name: Debug PowerShell output for Chrome
+      debug:
+        msg: "Chrome update required: {{ chrome_update_check.stdout.strip() }}"
+  
+    - name: Debug PowerShell output for Remote Desktop Manager
+      debug:
+        msg: "Remote Desktop Manager update required: {{ RemoteDesktopManager_update_check.stdout.strip() }}"
+
+    - name: Stop MS Edge processes if upgrade is required
+      win_shell: |
+        Get-Process "*msedge.exe*" | Stop-Process -Force
+      when: edge_update_check.stdout.strip() == "true"
+
+    - name: Install/Update Microsoft Edge
+      win_package:
+        path: "{{ edge_installer_path }}"
+        arguments: 
+          - /quiet 
+          - /norestart
+        log_path: c:\windows\temp\MicrosoftEnge.log
+        product_id: "Edge_Enterprise_Product_ID"  # Replace with actual Product ID if known
+        state: present
+      when: edge_update_check.stdout.strip() == "true"
+      register: edge_update_result
+
+    - name: Stop Fire Fox processes if upgrade is required
+      win_shell: |
+        Get-Process "*firefox.exe*" | Stop-Process -Force
+      when: firefox_update_check.stdout.strip() == "true"
+
+    - name: Install/Update Mozilla Firefox
+      win_package:
+        path: "{{ firefox_installer_path }}"
+        arguments: 
+          - /quiet 
+          - /norestart
+        log_path: c:\windows\temp\Firefoxmsi.log
+        product_id: "Firefox_Product_ID"  # Replace with actual Product ID if known
+        state: present
+      when: firefox_update_check.stdout.strip() == "true"
+      register: firefox_update_result
+
+    - name: Stop Google Chrome processes if upgrade is required
+      win_shell: |
+        Get-Process "*Chrome*" | Stop-Process -Force
+      when: chrome_update_check.stdout.strip() == "true"
+
+    - name: Install/Update Google Chrome
+      win_package:
+        path: "{{ chrome_installer_path }}"
+        arguments:
+          - /quiet 
+          - /norestart
+        log_path: c:\windows\temp\Googlechrome.log  
+        product_id: "Chrome_Product_ID"  # Replace with actual Product ID if known
+        state: present
+      when: chrome_update_check.stdout.strip() == "true"
+      register: chrome_update_result
+
+    - name: Stop Remote Desktop Manager processes if upgrade is required
+      win_shell: |
+        Get-Process "*RemoteDesktopManager.exe*" | Stop-Process -Force
+      when: RemoteDesktopManager_update_check.stdout.strip() == "true"
+
+    - name: Install/Update Remote Desktop Manage
+      win_package:
+        path: "{{ RemoteDesktopManager_installer_path }}"
+        arguments:
+          - /quiet 
+          - /norestart
+        log_path: c:\windows\temp\RemoteDesktopManage.log  
+        product_id: "Chrome_Product_ID"  # Replace with actual Product ID if known
+        state: present
+      when: RemoteDesktopManager_update_check.stdout.strip() == "true"
+      register: RemoteDesktopManage_update_result
+
+    - name: Debug Edge update result
+      debug:
+        var: edge_update_result
+      when: edge_update_result is defined
+
+    - name: Debug Firefox update result
+      debug:
+        var: firefox_update_result
+      when: firefox_update_result is defined
+
+    - name: Debug Chrome update result
+      debug:
+        var: chrome_update_result
+      when: chrome_update_result is defined
+
+    - name: Debug Remote Desktop Manage update result
+      debug:
+        var: RemoteDesktopManage_update_result
+      when: RemoteDesktopManage_update_result is defined
+
+    - name: Delete C:\temp\installers directory after updates
+      win_file:
+        path: "{{ installer_dest }}"
+        state: absent
